@@ -1,0 +1,30 @@
+{
+  "name": "resort-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "js-md5": "^0.9.2",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^1.43.0",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-datepicker": "^9.1.0",
+    "react-dom": "19.2.8",
+    "react-hot-toast": "^2.6.0",
+    "react-signature-canvas": "^1.1.0-alpha.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
+    "tailwindcss": "^4"
+  }
+}
