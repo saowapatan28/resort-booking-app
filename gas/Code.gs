@@ -890,7 +890,13 @@ function getFolderId(key) {
   if (_folderIdCache[key]) return _folderIdCache[key];
 
   const ws = getSheet(SHEET.DRIVE_FOLDERS);
-  const [h, ...rows] = ws.getDataRange().getValues();
+  const allRows = ws.getDataRange().getValues();
+  // ค้นหา header row แบบ dynamic — รองรับกรณีที่ชีตมีแถวหัวกระดาษตกแต่ง (decorative
+  // title row) อยู่เหนือ header จริง เช่น "📁 Google Drive Folder Reference" ที่แถว 1
+  const hIdx = allRows.findIndex(r => r.some(cell => String(cell).trim() === "folder_key"));
+  if (hIdx === -1) throw new Error("ไม่พบ header row ในชีต drive_folders (หา 'folder_key' ไม่เจอ)");
+  const h = allRows[hIdx];
+  const rows = allRows.slice(hIdx + 1);
   const colKey = h.indexOf("folder_key");
   const colUrl = h.indexOf("folder_url");
   const row = rows.find(r => r[colKey] === key);
