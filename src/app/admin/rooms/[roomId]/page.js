@@ -8,17 +8,18 @@ import { callGas } from "@/lib/gasClient";
 import { GAS_ACTIONS } from "@/lib/constants";
 
 export default function EditRoomPage() {
-  const { roomId } = useParams();
+  const { roomId: typeId } = useParams();
   const router = useRouter();
-  const isNew = roomId === "new";
+  const isNew = typeId === "new";
   const [room, setRoom] = useState(isNew ? {} : null);
 
   useEffect(() => {
     if (isNew) return;
-    callGas(GAS_ACTIONS.GET_ROOM_TYPES, { roomTypeId: roomId }).then((data) =>
-      setRoom(Array.isArray(data) ? data[0] : data)
-    );
-  }, [roomId, isNew]);
+    // [แก้] getRoomTypes ไม่รับ id มากรอง — ดึงทั้งหมดแล้วหาเอาเองฝั่ง client
+    callGas(GAS_ACTIONS.GET_ROOM_TYPES).then((data) => {
+      setRoom((data ?? []).find((r) => r.type_id === typeId) ?? null);
+    });
+  }, [typeId, isNew]);
 
   return (
     <ProtectedRoute roles={["owner"]}>

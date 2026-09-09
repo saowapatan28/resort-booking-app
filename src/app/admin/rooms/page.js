@@ -14,6 +14,8 @@ export default function RoomsAdminPage() {
 
   function load() {
     setLoading(true);
+    // [แก้] getRoomTypes ของจริงคืนแค่ห้องที่ active เท่านั้น — หน้าจัดการนี้เลยยัง
+    // ไม่เห็นห้องที่เคย "ปิดใช้งาน" ไปแล้ว (backend ไม่มี action ดึงห้อง inactive กลับมาดู)
     callGas(GAS_ACTIONS.GET_ROOM_TYPES)
       .then((data) => setRooms(data ?? []))
       .finally(() => setLoading(false));
@@ -24,11 +26,13 @@ export default function RoomsAdminPage() {
     load();
   }, []);
 
-  async function handleDelete(id) {
-    if (!confirm("ยืนยันการลบประเภทห้องนี้?")) return;
+  // [แก้] ไม่มี action "deleteRoomType" ใน backend — ใช้ saveRoomType เซฟทั้งแถวเดิม
+  // ซ้ำ พร้อมตั้ง active เป็น FALSE แทนการลบจริง (ห้องจะหายจากหน้าเว็บลูกค้าทันที)
+  async function handleDeactivate(room) {
+    if (!confirm(`ปิดใช้งานห้อง "${room.type_name}"?`)) return;
     try {
-      await callGas(GAS_ACTIONS.DELETE_ROOM_TYPE, { id });
-      toast.success("ลบแล้ว");
+      await callGas(GAS_ACTIONS.SAVE_ROOM_TYPE, { ...room, active: "FALSE" });
+      toast.success("ปิดใช้งานแล้ว");
       load();
     } catch (err) {
       toast.error(err.message);
@@ -51,21 +55,24 @@ export default function RoomsAdminPage() {
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {rooms.map((room) => (
-          <div key={room.id} className="rounded-xl border border-stone-200 bg-white p-4">
-            <p className="font-semibold text-stone-800">{room.name}</p>
+          <div key={room.type_id} className="rounded-xl border border-stone-200 bg-white p-4">
+            <p className="font-semibold text-stone-800">{room.type_name}</p>
             <p className="mt-1 text-sm text-stone-500">
-              {formatCurrency(room.basePrice)}/คืน · {room.totalCount} ห้อง
+              {formatCurrency(room.price_weekday)}/คืน · {room.total_rooms} ห้อง
             </p>
             <div className="mt-3 flex gap-3 text-sm">
-              <Link href={`/admin/rooms/${room.id}`} className="font-medium text-teal-700 hover:underline">
+              <Link href={`/admin/rooms/${room.type_id}`} className="font-medium text-teal-700 hover:underline">
                 แก้ไข
               </Link>
-              <button onClick={() => handleDelete(room.id)} className="font-medium text-red-600 hover:underline">
-                ลบ
+              <button onClick={() => handleDeactivate(room)} className="font-medium text-red-600 hover:underline">
+                ปิดใช้งาน
               </button>
             </div>
           </div>
         ))}
+        {!loading && rooms.length === 0 && (
+          <p className="text-stone-400">ยังไม่มีประเภทห้องพัก</p>
+        )}
       </div>
     </ProtectedRoute>
   );

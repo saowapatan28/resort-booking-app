@@ -1,12 +1,11 @@
 "use client";
 
-import md5 from "js-md5";
 import { SESSION_STORAGE_KEY } from "./constants";
 
-/** Hash a password the same way the GAS backend stores it (MD5). */
-export function hashPassword(rawPassword) {
-  return md5(rawPassword);
-}
+// [แก้] เดิมมี hashPassword() ให้ browser แฮชรหัสผ่านเป็น MD5 เองก่อนส่ง แต่
+// login()/saveUser() ฝั่ง gas/Code.gs รอรับรหัสผ่านดิบแล้วไป md5() เองที่ server
+// (ดู CLAUDE.md/PROJECT_NOTES.md) — ฟังก์ชันนี้เลยไม่มีที่ใช้แล้ว ตัดออกไปเลย
+// เพื่อไม่ให้เผลอเอามาใช้ผิดจุดอีก
 
 /** Persist the logged-in admin/owner session in localStorage. */
 export function saveSession(session) {

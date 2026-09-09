@@ -13,6 +13,7 @@ export default function RoomsPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // [แก้] getRoomTypes ของจริงไม่รับพารามิเตอร์กรอง คืนห้อง active ทั้งหมดเสมอ
     callGas(GAS_ACTIONS.GET_ROOM_TYPES)
       .then((data) => setRooms(data ?? []))
       .catch((err) => setError(err.message))
@@ -35,7 +36,7 @@ export default function RoomsPage() {
 
         <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {rooms.map((room) => (
-            <RoomCard key={room.id} room={room} />
+            <RoomCard key={room.type_id} room={room} />
           ))}
         </div>
       </main>

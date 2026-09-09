@@ -24,6 +24,7 @@ export default function LoginPage() {
       const result = await callGas(GAS_ACTIONS.LOGIN, { username, password });
       login({
         token: result.token,
+        userId: result.user_id, // ใช้เป็น admin_user_id ตอน checkin/checkout
         username,
         role: result.role,
         displayName: result.full_name,

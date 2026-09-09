@@ -6,14 +6,25 @@ import DashboardStats from "@/components/DashboardStats";
 import BookingsCalendarView from "@/components/BookingsCalendarView";
 import { callGas } from "@/lib/gasClient";
 import { GAS_ACTIONS } from "@/lib/constants";
+import { toISODate } from "@/lib/format";
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState(null);
   const [bookingsByDate, setBookingsByDate] = useState({});
 
   useEffect(() => {
-    callGas(GAS_ACTIONS.GET_DASHBOARD_SUMMARY).then(setSummary);
-    callGas(GAS_ACTIONS.GET_BOOKINGS_CALENDAR).then((data) => setBookingsByDate(data ?? {}));
+    callGas(GAS_ACTIONS.GET_DASHBOARD).then(setSummary);
+    // [แก้] ไม่มี getBookingsCalendar จริง — ดึง getBookings ทั้งหมดแล้วจัดกลุ่มตาม
+    // check_in_date เองฝั่ง client แทน
+    callGas(GAS_ACTIONS.GET_BOOKINGS).then((data) => {
+      const grouped = {};
+      (data ?? []).forEach((b) => {
+        if (!b.check_in_date) return;
+        const key = toISODate(b.check_in_date);
+        (grouped[key] ??= []).push(b);
+      });
+      setBookingsByDate(grouped);
+    });
   }, []);
 
   return (
@@ -30,10 +41,11 @@ export default function DashboardPage() {
         <div className="rounded-xl border border-stone-200 bg-white p-4">
           <p className="font-semibold text-stone-800">สรุปด่วน</p>
           <ul className="mt-3 space-y-2 text-sm text-stone-600">
-            <li>จำนวนการจองทั้งหมด: {summary?.totalBookings ?? "-"}</li>
-            <li>เช็คอินวันนี้: {summary?.checkinsToday ?? "-"}</li>
-            <li>เช็คเอาท์วันนี้: {summary?.checkoutsToday ?? "-"}</li>
-            <li>รอตรวจสอบสลิป: {summary?.pendingReviewCount ?? "-"}</li>
+            <li>จำนวนการจองทั้งหมด: {summary?.total_bookings ?? "-"}</li>
+            <li>เช็คอินวันนี้: {summary?.checkin_today ?? "-"}</li>
+            <li>เช็คเอาท์วันนี้: {summary?.checkout_today ?? "-"}</li>
+            <li>รอยืนยัน: {summary?.pending ?? "-"}</li>
+            <li>ยืนยันแล้ว: {summary?.confirmed ?? "-"}</li>
           </ul>
         </div>
       </div>

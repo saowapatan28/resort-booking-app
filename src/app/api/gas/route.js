@@ -5,9 +5,12 @@
 // entirely (GAS -> Next.js is a plain server-to-server fetch), and gives us
 // one place to attach the shared secret / session token if we add one later.
 //
-// Contract: POST { action: string, payload?: object, token?: string }
-// GAS side (doPost) should read e.postData.contents as JSON with the same
-// shape and return JSON: { ok: true, data } or { ok: false, error }.
+// Contract: POST { action: string, ...actionFields, token?: string } — every
+// action-specific field sits flat at the top level next to `action`, not
+// nested under a `payload` key (see gas/Code.gs's handleRequest: it reads
+// `data.foo` directly off the merged request body). Response is JSON:
+// { ok: true, data } for most actions, or { ok: true, ...fields } for a few
+// that reply with flat fields instead (e.g. login), or { ok: false, error }.
 
 const GAS_API_URL = process.env.GAS_API_URL;
 

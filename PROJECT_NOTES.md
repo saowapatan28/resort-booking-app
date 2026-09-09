@@ -36,9 +36,38 @@
 - `src/lib/gasClient.js`: เดิมห่อข้อมูลส่งไปเป็น `{ action, payload: {...}, token }` แต่ backend รอรับฟิลด์แบบแบนที่ระดับบนสุด (`{ action, username, password, ... }`) → แก้ให้ spread payload ขึ้นมาระดับบนสุด และรองรับ response ทั้ง 2 แบบที่ backend ตอบกลับปนกัน (บาง action ห่อใน `data`, บาง action คืนฟิลด์ตรงๆ เช่น `login`)
 - `src/app/login/page.js`: เดิม hash รหัสผ่านที่ browser ก่อนส่ง (`passwordHash`) แต่ backend รอรับรหัสผ่านดิบ (`password`) แล้วไป hash เองฝั่ง server → แก้ให้ส่ง `password` ตรงๆ
 
+## ✅ ปรับ action/field name ฝั่ง Next.js ให้ตรงกับ gas/Code.gs แล้ว (2026-09-09)
+
+ไล่แก้ทุกหน้า/component ที่เรียก `callGas()` ให้ใช้ action name + field name ตรงกับ
+`case` และ destructured fields ใน `gas/Code.gs` จริง (ไม่ใช่ชื่อ camelCase ที่ mock
+ไว้แต่แรกอีกต่อไป) — ดู `src/lib/constants.js` (`GAS_ACTIONS`, `PAYMENT_STATUS`,
+`BOOKING_STATUS`) เป็น source of truth ฝั่ง frontend ตอนนี้
+
+สิ่งที่ backend ยังไม่รองรับเลย เลยต้องปรับ UX ให้ทำได้เท่าที่มีจริงไปก่อน (ดู
+comment `[แก้]` ในโค้ดแต่ละจุด):
+- **ลบ**: ไม่มี `deleteRoomType`/`deleteSeasonalPrice`/`deleteAdminUser`/`deleteGalleryImage`
+  → หน้าห้องพัก/ผู้ใช้ใช้ "ปิดใช้งาน" (`active:false` ผ่าน `saveRoomType`/`saveUser`) แทน,
+  ราคาเทศกาล/รูป gallery ตัดปุ่มลบออกไปเลย (ต้องลบในชีตตรงๆ)
+- **ราคาเทศกาล**: ไม่มี `listSeasonalPrices` → หน้า `/admin/pricing` เหลือแค่ฟอร์มเพิ่ม อย่างเดียว ดูรายการที่มีอยู่ในชีต `seasonal_pricing` ตรงๆ
+- **ปฏิทิน dashboard**: ไม่มี `getBookingsCalendar` → ดึง `getBookings` ทั้งหมดมาจัดกลุ่ม
+  ตาม `check_in_date` เองฝั่ง client (ไม่มีชื่อแขกในนั้น เพราะ `getBookings` ไม่ join guest)
+- **เช็คอิน/เอาท์วันนี้**: ไม่มี `listTodayTasks` → ใช้ `getBookings` กรอง status +
+  วันที่แทน (check-out ต้อง filter ฝั่ง client เพราะ backend กรองวันที่ได้แค่ check_in_date)
+- **เซ็นเอกสารหน้างาน**: ไม่มี action แยกสำหรับเซ็น onsite → ฝัง signature ลง PDF
+  ที่สร้างฝั่ง client แล้วเซฟผ่าน `generatePDF` ตัวเดียว (คนละ path กับเซ็นทางไกล
+  ผ่านลิงก์ที่ใช้ `submitSignature` — สองทางนี้ยังไม่คุยกัน เอกสารที่เซ็นทางไกล
+  ยังไม่มีทางสร้าง PDF ให้อัตโนมัติ เพราะ `generatePDF` ต้อง auth เป็น admin/owner)
+- **ข้อมูลรีสอร์ท**: `resort_info` เป็นชีต key/value อิสระ ไม่รู้ชื่อคอลัมน์แน่ชัดจากโค้ด
+  → หน้า `/admin/gallery` render ฟอร์มตามคีย์จริงที่ `getResortInfo` คืนมาแทนการ
+  เดาชื่อ field (หน้าแรก/`Footer` ยังเดาชื่อคีย์ทั่วไปอยู่ — เช็ค comment ในไฟล์)
+- **รูปห้องพัก**: ไม่มี action อัพโหลดรูปห้องพักโดยเฉพาะ → ใช้ `uploadDecorPhoto`
+  (ผลข้างเคียง: รูปจะไปโผล่ในชีต `gallery` ด้วย)
+
+ยังไม่ได้แตะ `gas/Code.gs` เพิ่มเติมในรอบนี้ — ของที่ backend ยังไม่รองรับข้างบน
+ถ้าจะทำให้ครบจริงต้องกลับไปเพิ่ม action ใน `Code.gs` ก่อน
+
 ## ยังไม่ได้ทำ (ของที่คุยค้างไว้)
 
-- [ ] **ปรับ action/field name ที่เหลือทั้งหมด** ให้ Next.js ตรงกับ `gas/Code.gs` จริง (การจองห้อง ต้องเลือก `room_id` จริงก่อน ไม่ใช่แค่ประเภทห้อง, `checkAvailability` แทน `getRoomAvailability`+`quotePrice`, field แบบ snake_case เช่น `full_name`/`type_id` แทน camelCase ฯลฯ) — งานใหญ่ ยังไม่ได้ทำเพราะรอ "ลองเล่นดูก่อน"
 - [ ] Redeploy `gas/Code.gs` เวอร์ชันล่าสุด → Deploy → Manage deployments → New version
 - [ ] เปลี่ยนรหัสผ่าน owner01 จาก `Resort2026!` เป็นรหัสจริง (วิธีอยู่ในแชทก่อนหน้า: รันฟังก์ชัน `md5()` ใน Apps Script editor)
 - [ ] เปลี่ยน `resort-booking-app` บน GitHub จาก public → private

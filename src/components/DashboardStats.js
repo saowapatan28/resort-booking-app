@@ -1,11 +1,12 @@
 import { formatCurrency } from "@/lib/format";
 
+// [แก้] ฟิลด์ตรงกับที่ getDashboard() ใน gas/Code.gs คืนจริง (snake_case)
 export default function DashboardStats({ summary }) {
   const cards = [
-    { label: "รายได้วันนี้", value: formatCurrency(summary?.revenueToday), accent: "text-teal-700" },
-    { label: "รายได้เดือนนี้", value: formatCurrency(summary?.revenueMonth), accent: "text-teal-700" },
-    { label: "Occupancy Rate", value: `${(summary?.occupancyRate ?? 0).toFixed(0)}%`, accent: "text-amber-600" },
-    { label: "รอตรวจสลิป", value: summary?.pendingReviewCount ?? 0, accent: "text-red-600" },
+    { label: "รายได้วันนี้", value: formatCurrency(summary?.revenue_today), accent: "text-teal-700" },
+    { label: "รายได้เดือนนี้", value: formatCurrency(summary?.revenue_month), accent: "text-teal-700" },
+    { label: "Occupancy Rate", value: `${summary?.occupancy_rate ?? 0}%`, accent: "text-amber-600" },
+    { label: "รอยืนยัน", value: summary?.pending ?? 0, accent: "text-red-600" },
   ];
 
   return (

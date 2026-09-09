@@ -5,15 +5,22 @@ import Link from "next/link";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import StatusBadge from "@/components/StatusBadge";
 import { callGas } from "@/lib/gasClient";
-import { GAS_ACTIONS } from "@/lib/constants";
-import { formatDate } from "@/lib/format";
+import { GAS_ACTIONS, BOOKING_STATUS } from "@/lib/constants";
+import { formatDate, toISODate } from "@/lib/format";
 
 export default function CheckinListPage() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    callGas(GAS_ACTIONS.LIST_TODAY_TASKS, { type: "checkin" })
+    // [แก้] ไม่มี listTodayTasks — ใช้ getBookings กรองด้วย status "ยืนยัน" +
+    // ช่วงวันที่ (date_from/date_to กรองที่ check_in_date) แทน
+    const today = toISODate(new Date());
+    callGas(GAS_ACTIONS.GET_BOOKINGS, {
+      status: BOOKING_STATUS.CONFIRMED,
+      date_from: today,
+      date_to: today,
+    })
       .then((data) => setTasks(data ?? []))
       .finally(() => setLoading(false));
   }, []);
@@ -30,17 +37,17 @@ export default function CheckinListPage() {
       <div className="mt-4 space-y-3">
         {tasks.map((t) => (
           <Link
-            key={t.bookingId}
-            href={`/admin/checkin/${t.bookingId}`}
+            key={t.booking_id}
+            href={`/admin/checkin/${t.booking_id}`}
             className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-4 hover:shadow-sm"
           >
             <div>
-              <p className="font-semibold text-stone-800">{t.guestName}</p>
+              <p className="font-semibold text-stone-800">{t.booking_id}</p>
               <p className="text-sm text-stone-500">
-                {t.roomTypeName} · {formatDate(t.checkIn)}
+                ห้อง {t.room_id} ({t.type_id}) · {formatDate(t.check_in_date)}
               </p>
             </div>
-            <StatusBadge status={t.status} />
+            <StatusBadge bookingStatus={t.booking_status} />
           </Link>
         ))}
       </div>

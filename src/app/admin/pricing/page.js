@@ -5,22 +5,21 @@ import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { callGas } from "@/lib/gasClient";
 import { GAS_ACTIONS } from "@/lib/constants";
-import { formatCurrency, formatDate } from "@/lib/format";
 
-const emptyForm = { roomTypeId: "", label: "", startDate: "", endDate: "", price: "" };
+const emptyForm = { type_id: "", season_name: "", date_from: "", date_to: "", price: "" };
 
+// [แก้] gas/Code.gs มีแค่ saveSeasonalPrice() (เพิ่มแถวใหม่อย่างเดียว) — ไม่มี
+// listSeasonalPrices / deleteSeasonalPrice เลย จึงยังโชว์/ลบราคาเทศกาลที่เพิ่ม
+// ไปแล้วในหน้านี้ไม่ได้ (ต้องเปิดชีต seasonal_pricing ดูโดยตรงไปก่อน) — ตัดตาราง
+// รายการ + ปุ่มลบของเดิมออก เหลือแค่ฟอร์มเพิ่มอย่างเดียวให้ตรงกับที่ backend ทำได้จริง
 export default function PricingPage() {
   const [rooms, setRooms] = useState([]);
-  const [prices, setPrices] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  function load() {
+  useEffect(() => {
     callGas(GAS_ACTIONS.GET_ROOM_TYPES).then((data) => setRooms(data ?? []));
-    callGas(GAS_ACTIONS.LIST_SEASONAL_PRICES).then((data) => setPrices(data ?? []));
-  }
-
-  useEffect(load, []);
+  }, []);
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -29,12 +28,14 @@ export default function PricingPage() {
     setSaving(true);
     try {
       await callGas(GAS_ACTIONS.SAVE_SEASONAL_PRICE, {
-        ...form,
+        type_id: form.type_id,
+        season_name: form.season_name,
+        date_from: form.date_from,
+        date_to: form.date_to,
         price: Number(form.price),
       });
       toast.success("บันทึกราคาเทศกาลแล้ว");
       setForm(emptyForm);
-      load();
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -42,34 +43,27 @@ export default function PricingPage() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm("ลบราคาเทศกาลนี้?")) return;
-    try {
-      await callGas(GAS_ACTIONS.DELETE_SEASONAL_PRICE, { id });
-      toast.success("ลบแล้ว");
-      load();
-    } catch (err) {
-      toast.error(err.message);
-    }
-  }
-
   return (
     <ProtectedRoute roles={["owner"]}>
       <h1 className="text-xl font-bold text-stone-800">ราคาช่วงเทศกาล</h1>
+      <p className="mt-1 text-sm text-stone-500">
+        เพิ่มราคาช่วงเทศกาลใหม่ได้ที่นี่ — ดูรายการที่เพิ่มไปแล้วในชีต{" "}
+        <code className="rounded bg-stone-100 px-1">seasonal_pricing</code> โดยตรง
+      </p>
 
       <form onSubmit={handleSubmit} className="mt-4 max-w-xl space-y-4 rounded-xl border border-stone-200 bg-white p-5">
         <div>
           <label className="mb-1 block text-sm text-stone-600">ประเภทห้อง *</label>
           <select
             required
-            value={form.roomTypeId}
-            onChange={update("roomTypeId")}
+            value={form.type_id}
+            onChange={update("type_id")}
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
           >
             <option value="">-- เลือกห้อง --</option>
             {rooms.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
+              <option key={r.type_id} value={r.type_id}>
+                {r.type_name}
               </option>
             ))}
           </select>
@@ -78,8 +72,8 @@ export default function PricingPage() {
           <label className="mb-1 block text-sm text-stone-600">ชื่อช่วงเทศกาล *</label>
           <input
             required
-            value={form.label}
-            onChange={update("label")}
+            value={form.season_name}
+            onChange={update("season_name")}
             placeholder="เช่น สงกรานต์ 2569"
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
           />
@@ -90,8 +84,8 @@ export default function PricingPage() {
             <input
               required
               type="date"
-              value={form.startDate}
-              onChange={update("startDate")}
+              value={form.date_from}
+              onChange={update("date_from")}
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
             />
           </div>
@@ -100,8 +94,8 @@ export default function PricingPage() {
             <input
               required
               type="date"
-              value={form.endDate}
-              onChange={update("endDate")}
+              value={form.date_to}
+              onChange={update("date_to")}
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
             />
           </div>
@@ -124,44 +118,6 @@ export default function PricingPage() {
           {saving ? "กำลังบันทึก..." : "เพิ่มราคาเทศกาล"}
         </button>
       </form>
-
-      <div className="mt-6 overflow-x-auto rounded-xl border border-stone-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-stone-100 bg-stone-50 text-stone-500">
-            <tr>
-              <th className="px-4 py-2">ห้อง</th>
-              <th className="px-4 py-2">ช่วงเทศกาล</th>
-              <th className="px-4 py-2">วันที่</th>
-              <th className="px-4 py-2">ราคา</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {prices.map((p) => (
-              <tr key={p.id} className="border-b border-stone-50 last:border-0">
-                <td className="px-4 py-2">{rooms.find((r) => r.id === p.roomTypeId)?.name ?? p.roomTypeId}</td>
-                <td className="px-4 py-2">{p.label}</td>
-                <td className="px-4 py-2">
-                  {formatDate(p.startDate)} - {formatDate(p.endDate)}
-                </td>
-                <td className="px-4 py-2">{formatCurrency(p.price)}</td>
-                <td className="px-4 py-2">
-                  <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:underline">
-                    ลบ
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {prices.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-stone-400">
-                  ยังไม่มีราคาช่วงเทศกาล
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
     </ProtectedRoute>
   );
 }

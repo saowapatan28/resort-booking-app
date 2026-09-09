@@ -3,18 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import toast from "react-hot-toast";
-import Image from "next/image";
 import SignaturePad from "@/components/SignaturePad";
-import { callGas } from "@/lib/gasClient";
+import { callGas, dataUrlToBase64 } from "@/lib/gasClient";
 import { GAS_ACTIONS, SIGN_DOC_TYPE } from "@/lib/constants";
-import { getCurrentPosition, formatGeoStamp } from "@/lib/geo";
+import { getCurrentPosition, formatGeoStamp, formatGeoValue } from "@/lib/geo";
 import { stampSignature } from "@/lib/signatureStamp";
-import { buildProcessPdf } from "@/lib/pdf";
 import { formatDate } from "@/lib/format";
 
 export default function SignPage() {
   const { token } = useParams();
-  const [request, setRequest] = useState(null);
+  const [link, setLink] = useState(null);
+  const [booking, setBooking] = useState(null);
   const [error, setError] = useState(null);
   const [geo, setGeo] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -22,8 +21,13 @@ export default function SignPage() {
   const sigRef = useRef(null);
 
   useEffect(() => {
-    callGas(GAS_ACTIONS.GET_SIGN_REQUEST, { token })
-      .then(setRequest)
+    // getSignLink คืน { link, booking } — booking มาจาก getBookingDetail
+    // (ไม่รวมข้อมูลจาก checkin_checkout เช่นรูปกุญแจ เลยแสดงรูปกุญแจตรงนี้ไม่ได้)
+    callGas(GAS_ACTIONS.GET_SIGN_LINK, { token })
+      .then((data) => {
+        setLink(data.link);
+        setBooking(data.booking);
+      })
       .catch((err) => setError(err.message));
     getCurrentPosition().then(setGeo);
   }, [token]);
@@ -36,21 +40,12 @@ export default function SignPage() {
     setSubmitting(true);
     try {
       const rawSignature = sigRef.current.getDataUrl();
-      const stamped = await stampSignature(rawSignature, geo, request.guestName);
-
-      const pdfDataUrl = buildProcessPdf(request.docType, {
-        booking: request.booking,
-        keyPhotoDataUrl: request.docType === SIGN_DOC_TYPE.CHECKIN ? request.keyPhotoUrl : null,
-        signatureDataUrl: stamped,
-        geo,
-        signedBy: request.guestName,
-      });
+      const stamped = await stampSignature(rawSignature, geo, booking?.guest?.full_name);
 
       await callGas(GAS_ACTIONS.SUBMIT_SIGNATURE, {
         token,
-        signatureDataUrl: stamped,
-        pdfDataUrl,
-        geo,
+        signature_base64: dataUrlToBase64(stamped),
+        gps: formatGeoValue(geo),
       });
 
       setDone(true);
@@ -65,40 +60,37 @@ export default function SignPage() {
   if (error) {
     return <CenteredMessage title="ลิงก์ไม่ถูกต้องหรือหมดอายุ" detail={error} />;
   }
-  if (!request) {
+  if (!link || !booking) {
     return <CenteredMessage title="กำลังโหลด..." />;
   }
   if (done) {
-    return <CenteredMessage title="ขอบคุณครับ/ค่ะ" detail="บันทึกลายเซ็นเรียบร้อยแล้ว ท่านสามารถปิดหน้านี้ได้" success />;
+    return (
+      <CenteredMessage
+        title="ขอบคุณครับ/ค่ะ"
+        detail="บันทึกลายเซ็นเรียบร้อยแล้ว ท่านสามารถปิดหน้านี้ได้"
+        success
+      />
+    );
   }
 
   const title =
-    request.docType === SIGN_DOC_TYPE.CHECKIN ? "เอกสารรับกุญแจ (Check-in)" : "เอกสารคืนกุญแจ (Check-out)";
+    link.type === SIGN_DOC_TYPE.CHECKIN ? "เอกสารรับกุญแจ (Check-in)" : "เอกสารคืนกุญแจ (Check-out)";
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-4 py-10">
       <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-bold text-stone-800">{title}</h1>
         <p className="mt-1 text-sm text-stone-500">
-          {request.booking?.roomTypeName} · {formatDate(request.booking?.checkIn)} -{" "}
-          {formatDate(request.booking?.checkOut)}
+          {booking.type_id} · {formatDate(booking.check_in_date)} - {formatDate(booking.check_out_date)}
         </p>
-
-        {request.docType === SIGN_DOC_TYPE.CHECKIN && request.keyPhotoUrl && (
-          <div className="relative mt-4 h-48 w-full overflow-hidden rounded-lg bg-stone-100">
-            <Image src={request.keyPhotoUrl} alt="รูปกุญแจ" fill unoptimized className="object-contain" />
-          </div>
-        )}
 
         <p className="mt-4 text-sm text-stone-600">
           กรุณาตรวจสอบข้อมูลด้านบน แล้วลงลายเซ็นเพื่อยืนยัน
-          {request.docType === SIGN_DOC_TYPE.CHECKIN
-            ? "การรับกุญแจ"
-            : "การคืนกุญแจ"}
+          {link.type === SIGN_DOC_TYPE.CHECKIN ? "การรับกุญแจ" : "การคืนกุญแจ"}
         </p>
 
         <div className="mt-4">
-          <SignaturePad ref={sigRef} label={`ลายเซ็นของ ${request.guestName ?? "ผู้เข้าพัก"}`} />
+          <SignaturePad ref={sigRef} label={`ลายเซ็นของ ${booking.guest?.full_name ?? "ผู้เข้าพัก"}`} />
         </div>
 
         <p className="mt-2 text-xs text-stone-400">{formatGeoStamp(geo)}</p>

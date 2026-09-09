@@ -4,8 +4,13 @@ import { useMemo, useState } from "react";
 import { toISODate } from "@/lib/format";
 
 /**
- * Simple month-grid calendar showing how many bookings touch each day.
- * `bookingsByDate` is a map: { "2026-09-08": [{bookingId, guestName, roomTypeName}, ...] }
+ * Simple month-grid calendar showing how many bookings check in each day.
+ * `bookingsByDate` is a map: { "2026-09-08": [{ booking_id, room_id, type_id }, ...] }
+ *
+ * [แก้] gas/Code.gs ไม่มี action สำหรับดึง "การจองแยกตามวัน" โดยตรง (ของเดิมสมมติ
+ * เป็น getBookingsCalendar ซึ่งไม่มีจริง) — หน้า dashboard ดึง getBookings ทั้งหมด
+ * แล้วจัดกลุ่มตาม check_in_date เองฝั่ง client แทน และ getBookings ก็ไม่ได้ join
+ * ชื่อแขกมาด้วย เลยโชว์ได้แค่เลขที่จอง/เลขห้อง ไม่ใช่ชื่อแขก
  */
 export default function BookingsCalendarView({ bookingsByDate = {} }) {
   const [cursor, setCursor] = useState(() => new Date());
@@ -76,14 +81,15 @@ export default function BookingsCalendarView({ bookingsByDate = {} }) {
 
       {selectedDate && (
         <div className="mt-4 border-t border-stone-100 pt-3">
-          <p className="text-sm font-medium text-stone-700">รายการวันที่ {selectedDate}</p>
+          <p className="text-sm font-medium text-stone-700">เช็คอินวันที่ {selectedDate}</p>
           {selectedList.length === 0 ? (
             <p className="mt-1 text-sm text-stone-400">ไม่มีการจอง</p>
           ) : (
             <ul className="mt-1 space-y-1 text-sm text-stone-600">
               {selectedList.map((b) => (
-                <li key={b.bookingId}>
-                  {b.guestName} · {b.roomTypeName}
+                <li key={b.booking_id}>
+                  <span className="font-mono text-teal-700">{b.booking_id}</span> · ห้อง {b.room_id} (
+                  {b.type_id})
                 </li>
               ))}
             </ul>

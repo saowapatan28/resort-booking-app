@@ -9,21 +9,28 @@ import DateRangePicker from "@/components/DateRangePicker";
 import BookingForm from "@/components/BookingForm";
 import { callGas } from "@/lib/gasClient";
 import { GAS_ACTIONS } from "@/lib/constants";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, parsePhotoUrls } from "@/lib/format";
 
 export default function RoomDetailPage() {
-  const { roomId } = useParams();
+  const { roomId: typeId } = useParams();
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quote, setQuote] = useState(null);
 
   useEffect(() => {
-    callGas(GAS_ACTIONS.GET_ROOM_TYPES, { roomTypeId: roomId })
-      .then((data) => setRoom(Array.isArray(data) ? data[0] : data))
+    // [แก้] getRoomTypes ไม่รับ id มากรอง — ดึงทั้งหมดแล้วหาเอาเองฝั่ง client
+    callGas(GAS_ACTIONS.GET_ROOM_TYPES)
+      .then((data) => {
+        const found = (data ?? []).find((r) => r.type_id === typeId);
+        if (!found) throw new Error("ไม่พบห้องพักนี้");
+        setRoom(found);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [roomId]);
+  }, [typeId]);
+
+  const images = parsePhotoUrls(room?.photo_urls).map((url) => ({ url }));
 
   return (
     <>
@@ -34,31 +41,32 @@ export default function RoomDetailPage() {
 
         {room && (
           <>
-            <h1 className="text-2xl font-bold text-stone-800">{room.name}</h1>
+            <h1 className="text-2xl font-bold text-stone-800">{room.type_name}</h1>
             <p className="mt-1 text-stone-500">{room.description}</p>
 
             <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-2">
               <div>
-                <Gallery images={room.images ?? []} />
+                <Gallery images={images} />
                 <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-stone-600">
                   <div className="rounded-lg bg-stone-100 p-3">
-                    <p className="text-stone-400">ราคาปกติ</p>
-                    <p className="font-semibold text-teal-700">{formatCurrency(room.basePrice)}/คืน</p>
+                    <p className="text-stone-400">ราคาวันธรรมดา / เสาร์-อาทิตย์</p>
+                    <p className="font-semibold text-teal-700">
+                      {formatCurrency(room.price_weekday)} / {formatCurrency(room.price_weekend)}
+                    </p>
                   </div>
                   <div className="rounded-lg bg-stone-100 p-3">
-                    <p className="text-stone-400">ห้องว่าง</p>
-                    <p className="font-semibold">{room.availableCount ?? 0} ห้อง</p>
+                    <p className="text-stone-400">รับได้สูงสุด</p>
+                    <p className="font-semibold">{room.max_guests ?? "-"} ท่าน</p>
                   </div>
                 </div>
+                {room.amenities && (
+                  <p className="mt-3 text-sm text-stone-500">สิ่งอำนวยความสะดวก: {room.amenities}</p>
+                )}
               </div>
 
               <div className="space-y-6">
-                <DateRangePicker
-                  roomTypeId={room.id}
-                  basePrice={room.basePrice}
-                  onQuoteChange={setQuote}
-                />
-                <BookingForm roomTypeId={room.id} roomTypeName={room.name} quote={quote} />
+                <DateRangePicker typeId={room.type_id} onQuoteChange={setQuote} />
+                <BookingForm typeId={room.type_id} typeName={room.type_name} quote={quote} />
               </div>
             </div>
           </>

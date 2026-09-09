@@ -18,7 +18,8 @@ export default function BookingsListPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    callGas(GAS_ACTIONS.LIST_BOOKINGS, { status: filter === "all" ? null : filter })
+    // [แก้] listBookings -> getBookings จริง, ฟิลด์กรองเป็น status (ไม่ใช่ null ถ้าไม่กรอง)
+    callGas(GAS_ACTIONS.GET_BOOKINGS, filter === "all" ? {} : { status: filter })
       .then((data) => setBookings(data ?? []))
       .finally(() => setLoading(false));
   }, [filter]);
@@ -48,7 +49,6 @@ export default function BookingsListPage() {
           <thead className="border-b border-stone-100 bg-stone-50 text-stone-500">
             <tr>
               <th className="px-4 py-2">เลขที่จอง</th>
-              <th className="px-4 py-2">ผู้จอง</th>
               <th className="px-4 py-2">ห้อง</th>
               <th className="px-4 py-2">วันที่</th>
               <th className="px-4 py-2">ยอดรวม</th>
@@ -57,26 +57,27 @@ export default function BookingsListPage() {
           </thead>
           <tbody>
             {bookings.map((b) => (
-              <tr key={b.bookingId} className="border-b border-stone-50 last:border-0 hover:bg-stone-50">
+              <tr key={b.booking_id} className="border-b border-stone-50 last:border-0 hover:bg-stone-50">
                 <td className="px-4 py-2">
-                  <Link href={`/admin/bookings/${b.bookingId}`} className="font-mono text-teal-700 hover:underline">
-                    {b.bookingId}
+                  <Link href={`/admin/bookings/${b.booking_id}`} className="font-mono text-teal-700 hover:underline">
+                    {b.booking_id}
                   </Link>
                 </td>
-                <td className="px-4 py-2">{b.guestName}</td>
-                <td className="px-4 py-2">{b.roomTypeName}</td>
                 <td className="px-4 py-2">
-                  {formatDate(b.checkIn)} - {formatDate(b.checkOut)}
+                  {b.room_id} <span className="text-stone-400">({b.type_id})</span>
                 </td>
-                <td className="px-4 py-2">{formatCurrency(b.total)}</td>
                 <td className="px-4 py-2">
-                  <StatusBadge status={b.status} />
+                  {formatDate(b.check_in_date)} - {formatDate(b.check_out_date)}
+                </td>
+                <td className="px-4 py-2">{formatCurrency(b.total_price)}</td>
+                <td className="px-4 py-2">
+                  <StatusBadge bookingStatus={b.booking_status} />
                 </td>
               </tr>
             ))}
             {!loading && bookings.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-stone-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-stone-400">
                   ไม่มีข้อมูลการจอง
                 </td>
               </tr>

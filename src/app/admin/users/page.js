@@ -5,9 +5,11 @@ import toast from "react-hot-toast";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { callGas } from "@/lib/gasClient";
 import { GAS_ACTIONS, ROLES } from "@/lib/constants";
-import { hashPassword } from "@/lib/auth";
+import { isActiveValue } from "@/lib/format";
 
-const emptyForm = { username: "", displayName: "", password: "", role: ROLES.ADMIN };
+// [แก้] ฟิลด์ตรงกับ saveUser()/getUsers() ใน gas/Code.gs (snake_case, full_name
+// ไม่ใช่ displayName, password ไม่ใช่ passwordHash — backend hash เองด้วย md5())
+const emptyForm = { username: "", full_name: "", phone: "", password: "", role: ROLES.ADMIN };
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
@@ -15,7 +17,7 @@ export default function AdminUsersPage() {
   const [saving, setSaving] = useState(false);
 
   function load() {
-    callGas(GAS_ACTIONS.LIST_ADMIN_USERS).then((data) => setUsers(data ?? []));
+    callGas(GAS_ACTIONS.GET_USERS).then((data) => setUsers(data ?? []));
   }
 
   useEffect(load, []);
@@ -26,11 +28,13 @@ export default function AdminUsersPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await callGas(GAS_ACTIONS.SAVE_ADMIN_USER, {
+      await callGas(GAS_ACTIONS.SAVE_USER, {
         username: form.username,
-        displayName: form.displayName,
+        full_name: form.full_name,
+        phone: form.phone,
         role: form.role,
-        passwordHash: form.password ? hashPassword(form.password) : undefined,
+        password: form.password || undefined, // ผู้ใช้ใหม่ backend บังคับต้องมี
+        active: "TRUE",
       });
       toast.success("บันทึกผู้ใช้แล้ว");
       setForm(emptyForm);
@@ -42,11 +46,21 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function handleDelete(username) {
-    if (!confirm(`ลบผู้ใช้ ${username}?`)) return;
+  // [แก้] ไม่มี action "deleteAdminUser" — ใช้ saveUser เซฟทั้งแถวเดิมซ้ำ พร้อม
+  // ตั้ง active เป็น FALSE แทน (ไม่ส่ง password ไปด้วย เพื่อไม่ให้รหัสผ่านเดิมหาย)
+  async function handleToggleActive(u) {
+    const nextActive = !isActiveValue(u.active);
+    if (!confirm(`${nextActive ? "เปิด" : "ปิด"}ใช้งานผู้ใช้ ${u.username}?`)) return;
     try {
-      await callGas(GAS_ACTIONS.DELETE_ADMIN_USER, { username });
-      toast.success("ลบแล้ว");
+      await callGas(GAS_ACTIONS.SAVE_USER, {
+        user_id: u.user_id,
+        username: u.username,
+        full_name: u.full_name,
+        phone: u.phone,
+        role: u.role,
+        active: nextActive ? "TRUE" : "FALSE",
+      });
+      toast.success("บันทึกแล้ว");
       load();
     } catch (err) {
       toast.error(err.message);
@@ -71,19 +85,18 @@ export default function AdminUsersPage() {
           <div>
             <label className="mb-1 block text-sm text-stone-600">ชื่อที่แสดง</label>
             <input
-              value={form.displayName}
-              onChange={update("displayName")}
+              value={form.full_name}
+              onChange={update("full_name")}
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
             />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm text-stone-600">รหัสผ่าน (เว้นว่างถ้าไม่เปลี่ยน)</label>
+            <label className="mb-1 block text-sm text-stone-600">เบอร์โทร</label>
             <input
-              type="password"
-              value={form.password}
-              onChange={update("password")}
+              value={form.phone}
+              onChange={update("phone")}
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
             />
           </div>
@@ -99,13 +112,26 @@ export default function AdminUsersPage() {
             </select>
           </div>
         </div>
+        <div>
+          <label className="mb-1 block text-sm text-stone-600">รหัสผ่าน (ผู้ใช้ใหม่ต้องระบุ)</label>
+          <input
+            type="password"
+            value={form.password}
+            onChange={update("password")}
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+          />
+        </div>
         <button
           type="submit"
           disabled={saving}
           className="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:bg-stone-300"
         >
-          {saving ? "กำลังบันทึก..." : "บันทึกผู้ใช้"}
+          {saving ? "กำลังบันทึก..." : "เพิ่มผู้ใช้"}
         </button>
+        <p className="text-xs text-stone-400">
+          หมายเหตุ: ฟอร์มนี้ใช้เพิ่มผู้ใช้ใหม่เท่านั้น การแก้ไขผู้ใช้เดิม (เช่นเปลี่ยนรหัสผ่าน)
+          ยังไม่มี UI แยก — ต้องเรียก saveUser พร้อม user_id เดิมเอง
+        </p>
       </form>
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-stone-200 bg-white">
@@ -115,25 +141,27 @@ export default function AdminUsersPage() {
               <th className="px-4 py-2">Username</th>
               <th className="px-4 py-2">ชื่อที่แสดง</th>
               <th className="px-4 py-2">สิทธิ์</th>
+              <th className="px-4 py-2">สถานะ</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.username} className="border-b border-stone-50 last:border-0">
+              <tr key={u.user_id} className="border-b border-stone-50 last:border-0">
                 <td className="px-4 py-2 font-mono">{u.username}</td>
-                <td className="px-4 py-2">{u.displayName}</td>
+                <td className="px-4 py-2">{u.full_name}</td>
                 <td className="px-4 py-2 uppercase text-teal-700">{u.role}</td>
+                <td className="px-4 py-2">{isActiveValue(u.active) ? "เปิดใช้งาน" : "ปิดใช้งาน"}</td>
                 <td className="px-4 py-2">
-                  <button onClick={() => handleDelete(u.username)} className="text-red-600 hover:underline">
-                    ลบ
+                  <button onClick={() => handleToggleActive(u)} className="text-red-600 hover:underline">
+                    {isActiveValue(u.active) ? "ปิดใช้งาน" : "เปิดใช้งาน"}
                   </button>
                 </td>
               </tr>
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-stone-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-stone-400">
                   ยังไม่มีผู้ใช้
                 </td>
               </tr>

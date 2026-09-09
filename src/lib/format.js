@@ -44,3 +44,21 @@ export function nightsBetween(checkIn, checkOut) {
   const diff = Math.round((b - a) / (1000 * 60 * 60 * 24));
   return diff > 0 ? diff : 0;
 }
+
+// [เพิ่มใหม่] คอลัมน์ active ในชีต (room_types, rooms, users) อาจเป็น checkbox
+// จริง (boolean) หรือข้อความ "TRUE"/"FALSE" ก็ได้ — เทียบแบบเดียวกับ isTrue() ฝั่ง
+// gas/Code.gs กัน !!"FALSE" ที่เป็น string ไม่ว่างแล้วกลาย true ผิดๆ
+export function isActiveValue(v) {
+  if (typeof v === "boolean") return v;
+  return String(v ?? "").trim().toUpperCase() === "TRUE";
+}
+
+// [เพิ่มใหม่] room_types.photo_urls ในชีตเก็บเป็นสตริงเดียว (คั่นด้วย comma หรือ
+// ขึ้นบรรทัดใหม่) ไม่ใช่ array ของ backend ที่ไหน — แปลงเป็น array URL ที่ใช้แสดงผลได้
+export function parsePhotoUrls(photoUrls) {
+  if (!photoUrls) return [];
+  return String(photoUrls)
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}

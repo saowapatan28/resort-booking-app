@@ -10,7 +10,8 @@ import { formatGeoStamp } from "./geo";
  *
  * @param {"checkin"|"checkout"} docType
  * @param {object} data
- * @param {object} data.booking - { bookingId, guestName, roomTypeName, checkIn, checkOut }
+ * @param {object} data.booking - ผลลัพธ์จาก getBookingDetail:
+ *   { booking_id, type_id, check_in_date, check_out_date, guest: { full_name } }
  * @param {string} [data.keyPhotoDataUrl] - photo of the key, as data URL
  * @param {string} data.signatureDataUrl - signature PNG, as data URL
  * @param {{lat:number,lng:number}|null} data.geo
@@ -27,10 +28,10 @@ export function buildProcessPdf(docType, data) {
 
   doc.setFontSize(11);
   const lines = [
-    `เลขที่การจอง: ${booking?.bookingId ?? "-"}`,
-    `ผู้เข้าพัก: ${booking?.guestName ?? "-"}`,
-    `ประเภทห้อง: ${booking?.roomTypeName ?? "-"}`,
-    `เช็คอิน: ${booking?.checkIn ?? "-"}   เช็คเอาท์: ${booking?.checkOut ?? "-"}`,
+    `เลขที่การจอง: ${booking?.booking_id ?? "-"}`,
+    `ผู้เข้าพัก: ${booking?.guest?.full_name ?? "-"}`,
+    `ประเภทห้อง: ${booking?.type_id ?? "-"}`,
+    `เช็คอิน: ${booking?.check_in_date ?? "-"}   เช็คเอาท์: ${booking?.check_out_date ?? "-"}`,
     `ผู้เซ็นเอกสาร: ${signedBy ?? "-"}`,
     `วันเวลาที่เซ็น: ${formatDateTime(now)}`,
     formatGeoStamp(geo),

@@ -44,7 +44,7 @@ export async function callGas(action, payload = {}) {
   return rest;
 }
 
-/** Convert a File/Blob to a base64 data URL (used for photo/slip uploads). */
+/** Convert a File/Blob to a base64 data URL (used for image previews). */
 export function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -52,4 +52,23 @@ export function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * Convert a File/Blob to the raw base64 payload gas/Code.gs expects
+ * (`file_base64` / `key_photo_base64` / `signature_base64` / `pdf_base64`).
+ * Unlike fileToDataUrl this strips the `data:<mime>;base64,` prefix — Code.gs
+ * passes the string straight into Utilities.base64Decode(), which chokes on
+ * that prefix — and returns the mime type alongside it.
+ */
+export async function fileToBase64(file) {
+  const dataUrl = await fileToDataUrl(file);
+  const [, mimeType = file.type, base64 = ""] =
+    dataUrl.match(/^data:([^;]+);base64,(.*)$/s) || [];
+  return { base64, mimeType };
+}
+
+/** Strip the `data:<mime>;base64,` prefix off a data URL string. */
+export function dataUrlToBase64(dataUrl) {
+  return dataUrl.split(",")[1] || "";
 }

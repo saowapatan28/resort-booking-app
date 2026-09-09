@@ -8,6 +8,11 @@ import Gallery from "@/components/Gallery";
 import { callGas } from "@/lib/gasClient";
 import { GAS_ACTIONS } from "@/lib/constants";
 
+// resort_info เป็นชีต key/value ที่ backend คืนมาตรงตามที่เจอในชีตจริง (ดู
+// getResortInfo() ใน gas/Code.gs) — คีย์ที่ใช้ด้านล่าง (name, description,
+// address, phone, email, line) เป็นชื่อที่คาดว่าน่าจะตรง ถ้าไม่ตรงกับคอลัมน์ A
+// จริงในชีต resort_info ให้แก้ตรงนี้ให้ตรงกัน (ดูหน้า /admin/gallery ซึ่ง
+// render ฟอร์มแบบไดนามิกตามคีย์จริงที่ backend คืนมา ไว้เทียบได้)
 export default function HomePage() {
   const [resortInfo, setResortInfo] = useState(null);
   const [gallery, setGallery] = useState([]);
